@@ -5,11 +5,9 @@ import "./App.css";
 const Icon = ({ name, className = "w-5 h-5" }) => {
   const icons = {
     arrowRight: <path d="M5 12h14 M12 5l7 7-7 7" />,
-
     github: (
       <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
     ),
-
     linkedin: (
       <>
         <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
@@ -17,7 +15,6 @@ const Icon = ({ name, className = "w-5 h-5" }) => {
         <circle cx="4" cy="4" r="2" />
       </>
     ),
-
     instagram: (
       <>
         <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
@@ -25,19 +22,14 @@ const Icon = ({ name, className = "w-5 h-5" }) => {
         <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
       </>
     ),
-
     mail: (
       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6" />
     ),
-
     externalLink: (
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3" />
     ),
-
     code: <path d="M16 18l6-6-6-6 M8 6l-6 6 6 6" />,
-
     zap: <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />,
-
     globe: (
       <>
         <circle cx="12" cy="12" r="10" />
@@ -45,13 +37,9 @@ const Icon = ({ name, className = "w-5 h-5" }) => {
         <path d="M2 12h20" />
       </>
     ),
-
     menu: <path d="M4 12h16 M4 6h16 M4 18h16" />,
-
     x: <path d="M18 6L6 18 M6 6l12 12" />,
-
     arrowUp: <path d="M12 19V5 M5 12l7-7 7 7" />,
-
     sparkles: (
       <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z M20 3v4 M4 17v4 M21 13h-4 M7 7H3" />
     ),
@@ -139,19 +127,346 @@ const Reveal = ({ children, className = "", delay = 0 }) => {
   );
 };
 
+// ===== LIVE GITHUB STATS =====
+const GitHubStats = ({ username = "yourusername" }) => {
+  const [stats, setStats] = useState(null);
+  const [contributions, setContributions] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [hoveredDay, setHoveredDay] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const userRes = await fetch(`https://api.github.com/users/${username}`);
+        if (!userRes.ok) throw new Error("User not found");
+        const user = await userRes.json();
+
+        const reposRes = await fetch(
+          `https://api.github.com/users/${username}/repos?per_page=100`,
+        );
+        const repos = await reposRes.json();
+
+        const totalStars = repos.reduce(
+          (acc, repo) => acc + (repo.stargazers_count || 0),
+          0,
+        );
+        const languages = repos.reduce((acc, repo) => {
+          if (repo.language) {
+            acc[repo.language] = (acc[repo.language] || 0) + 1;
+          }
+          return acc;
+        }, {});
+
+        setStats({
+          avatar: user.avatar_url,
+          name: user.name || username,
+          bio: user.bio,
+          followers: user.followers,
+          publicRepos: user.public_repos,
+          totalStars,
+          languages: Object.entries(languages)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5),
+          joined: new Date(user.created_at).getFullYear(),
+        });
+
+        // Fetch contributions from free API
+        try {
+          const contribRes = await fetch(
+            `https://github-contributions-api.jogruber.de/v4/${username}?y=last`,
+          );
+          const contribData = await contribRes.json();
+          setContributions(contribData.contributions || []);
+        } catch {
+          setContributions([]);
+        }
+      } catch (err) {
+        console.error(err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div
+            key={i}
+            className="h-32 rounded-2xl bg-white/5 border border-white/10 animate-pulse"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
+        <p className="text-gray-400">
+          ⚠️ Could not load GitHub stats. Check the username.
+        </p>
+      </div>
+    );
+  }
+
+  // Build weeks from contributions
+  const buildWeeks = () => {
+    if (!contributions || contributions.length === 0) return [];
+    const weeks = [];
+    let currentWeek = [];
+    contributions.forEach((day, i) => {
+      currentWeek.push(day);
+      if (currentWeek.length === 7 || i === contributions.length - 1) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+    });
+    return weeks;
+  };
+
+  const weeks = buildWeeks();
+  const totalContributions = contributions?.reduce(
+    (sum, d) => sum + d.count,
+    0,
+  );
+
+  const getLevelColor = (count) => {
+    if (count === 0) return "bg-white/5 border border-white/5";
+    if (count <= 2) return "bg-[#0e4429] border border-[#0e4429]";
+    if (count <= 5) return "bg-[#006d32] border border-[#006d32]";
+    if (count <= 10) return "bg-[#26a641] border border-[#26a641]";
+    return "bg-[#39d353] border border-[#39d353]";
+  };
+  const statCards = [
+    {
+      label: "Repositories",
+      value: stats.publicRepos,
+      icon: "📦",
+      gradient: "from-indigo-500/20 to-transparent",
+      color: "text-indigo-400",
+    },
+    {
+      label: "Total Stars",
+      value: stats.totalStars,
+      icon: "⭐",
+      gradient: "from-yellow-500/20 to-transparent",
+      color: "text-yellow-400",
+    },
+    {
+      label: "Followers",
+      value: stats.followers,
+      icon: "👥",
+      gradient: "from-purple-500/20 to-transparent",
+      color: "text-purple-400",
+    },
+    {
+      label: "Contributions",
+      value: totalContributions || 0,
+      icon: "🔥",
+      gradient: "from-emerald-500/20 to-transparent",
+      color: "text-emerald-400",
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Profile Header */}
+      <SpotlightCard className="p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full blur-xl opacity-40 group-hover:opacity-70 transition-opacity" />
+            <img
+              src={stats.avatar}
+              alt={stats.name}
+              className="relative w-20 h-20 rounded-full border-2 border-white/20"
+            />
+            <span className="absolute bottom-0 right-0 w-5 h-5 bg-emerald-400 rounded-full border-4 border-[#0F0F11]" />
+          </div>
+
+          <div className="flex-1 text-center sm:text-left">
+            <h3 className="text-2xl font-bold">{stats.name}</h3>
+            {stats.bio && (
+              <p className="text-gray-400 text-sm mt-1">{stats.bio}</p>
+            )}
+            <div className="flex flex-wrap gap-3 mt-3 justify-center sm:justify-start">
+              <span className="text-xs text-gray-500">
+                📅 Joined {stats.joined}
+              </span>
+              <span className="text-xs text-gray-500">
+                🌍 Open Source Contributor
+              </span>
+            </div>
+          </div>
+
+          <a
+            href={`https://github.com/${username}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-5 py-3 rounded-full bg-white text-black text-sm font-semibold hover:bg-gray-200 transition-colors"
+          >
+            <Icon name="github" className="w-4 h-4" />
+            Follow
+          </a>
+        </div>
+      </SpotlightCard>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map((stat, i) => (
+          <Reveal key={stat.label} delay={i * 100}>
+            <SpotlightCard
+              className={`p-6 text-center bg-gradient-to-br ${stat.gradient}`}
+            >
+              <div className="text-3xl mb-2">{stat.icon}</div>
+              <div className={`text-3xl font-bold ${stat.color} mb-1`}>
+                {stat.value}
+              </div>
+              <div className="text-xs text-gray-500 uppercase tracking-wider">
+                {stat.label}
+              </div>
+            </SpotlightCard>
+          </Reveal>
+        ))}
+      </div>
+
+      {/* Top Languages */}
+      <SpotlightCard className="p-6 sm:p-8">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <span>🔥</span> Top Languages
+        </h3>
+        <div className="space-y-3">
+          {stats.languages.map(([lang, count]) => {
+            const total = stats.languages.reduce((sum, [, c]) => sum + c, 0);
+            const percent = ((count / total) * 100).toFixed(0);
+            return (
+              <div key={lang}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-gray-300">{lang}</span>
+                  <span className="text-gray-500">{percent}%</span>
+                </div>
+                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </SpotlightCard>
+
+      {/* Custom Contribution Graph - No Scrollbar */}
+      <SpotlightCard className="p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <span>📊</span> Contribution Activity
+          </h3>
+          <span className="text-xs text-gray-500">
+            {totalContributions || 0} contributions in the last year
+          </span>
+        </div>
+
+        {weeks.length > 0 ? (
+          <>
+            {/* Graph - fits container, no scroll */}
+            <div className="w-full">
+              <div className="flex gap-[2px] sm:gap-[3px] md:gap-1">
+                {weeks.map((week, wi) => (
+                  <div
+                    key={wi}
+                    className="flex flex-col gap-[2px] sm:gap-[3px] md:gap-1 flex-1"
+                  >
+                    {week.map((day, di) => (
+                      <div
+                        key={di}
+                        onMouseEnter={() =>
+                          setHoveredDay({
+                            date: day.date,
+                            count: day.count,
+                          })
+                        }
+                        onMouseLeave={() => setHoveredDay(null)}
+                        className={`w-full aspect-square rounded-[2px] sm:rounded-sm transition-all duration-200 hover:scale-150 hover:z-10 cursor-pointer ${getLevelColor(
+                          day.count,
+                        )}`}
+                        title={`${day.count} contributions on ${day.date}`}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Tooltip + Legend */}
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
+              <div className="text-xs text-gray-500 min-h-[20px]">
+                {hoveredDay ? (
+                  <span className="text-indigo-300">
+                    ✨ <strong>{hoveredDay.count}</strong> contribution
+                    {hoveredDay.count !== 1 ? "s" : ""} on {hoveredDay.date}
+                  </span>
+                ) : (
+                  <span className="opacity-50">
+                    Hover over a square to see details
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>Less</span>
+                <div className="flex gap-1">
+                  <div className="w-3 h-3 rounded-sm bg-white/5 border border-white/5" />
+                  <div className="w-3 h-3 rounded-sm bg-[#0e4429] border border-[#0e4429]" />
+                  <div className="w-3 h-3 rounded-sm bg-[#006d32] border border-[#006d32]" />
+                  <div className="w-3 h-3 rounded-sm bg-[#26a641] border border-[#26a641]" />
+                  <div className="w-3 h-3 rounded-sm bg-[#39d353] border border-[#39d353]" />
+                </div>
+                <span>More</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-12 text-gray-500 text-sm">
+            No contribution data available yet.
+          </div>
+        )}
+      </SpotlightCard>
+    </div>
+  );
+};
+
 function App() {
   const [scrollY, setScrollY] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
   const [activeSection, setActiveSection] = useState("home");
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
+    let lastScrollY = window.scrollY;
+
     const handleScroll = () => {
-      setScrollY(window.scrollY);
-      setShowScrollTop(window.scrollY > 400);
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsNavVisible(false);
+      } else {
+        setIsNavVisible(true);
+      }
+
+      lastScrollY = currentScrollY;
+      setScrollY(currentScrollY);
+      setShowScrollTop(currentScrollY > 400);
 
       const sections = ["home", "about", "projects", "contact"];
-      const scrollPosition = window.scrollY + 200;
+      const scrollPosition = currentScrollY + 200;
       for (const section of sections) {
         const element = document.getElementById(section);
         if (
@@ -163,6 +478,7 @@ function App() {
         }
       }
     };
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -183,6 +499,7 @@ function App() {
       gradient: "from-indigo-500/20 via-purple-500/20 to-transparent",
       border: "group-hover:border-indigo-500/50",
       image: "/coding.jpg",
+      link: "https://github.com/saouchinabil",
     },
     {
       title: "Photoshop & Illustrator",
@@ -191,6 +508,7 @@ function App() {
       gradient: "from-cyan-500/20 via-blue-500/20 to-transparent",
       border: "group-hover:border-cyan-500/50",
       image: "/design.jpg",
+       link: "https://www.behance.net/nabilsaouchi", 
     },
     {
       title: "After Effects",
@@ -199,6 +517,7 @@ function App() {
       gradient: "from-orange-500/20 via-red-500/20 to-transparent",
       border: "group-hover:border-orange-500/50",
       image: "/motion.jpg",
+       link: "https://www.behance.net/nabilsaouchi", 
     },
   ];
 
@@ -241,9 +560,9 @@ function App() {
 
       {/* ===== FLOATING NAVBAR ===== */}
       <nav
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
-          scrollY > 50 ? "w-[90%] max-w-2xl" : "w-[95%] max-w-3xl"
-        }`}
+        className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ease-in-out ${
+          isNavVisible ? "top-6" : "-top-24"
+        } ${scrollY > 50 ? "w-[90%] max-w-2xl" : "w-[95%] max-w-3xl"}`}
       >
         <div className="flex items-center justify-between px-2 py-2 rounded-full bg-[#0F0F11]/80 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/50">
           <button
@@ -254,7 +573,7 @@ function App() {
           </button>
 
           <div className="hidden md:flex items-center gap-1">
-            {["home", "about", "projects", "contact"].map((item) => (
+            {["home", "about", "github", "projects", "contact"].map((item) => (
               <button
                 key={item}
                 onClick={() => scrollToSection(item)}
@@ -286,7 +605,7 @@ function App() {
 
         {isMenuOpen && (
           <div className="md:hidden absolute top-full left-0 right-0 mt-2 p-2 rounded-2xl bg-[#0F0F11]/95 backdrop-blur-2xl border border-white/10 shadow-2xl">
-            {["home", "about", "projects", "contact"].map((item) => (
+            {["home", "about", "github", "projects", "contact"].map((item) => (
               <button
                 key={item}
                 onClick={() => scrollToSection(item)}
@@ -537,6 +856,33 @@ function App() {
           </div>
         </section>
 
+        {/* ===== GITHUB STATS SECTION ===== */}
+        <section id="github" className="mb-32">
+          <Reveal>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+              <div>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-3">
+                  <Icon name="github" className="w-8 h-8 text-white" />
+                  Live GitHub Stats
+                </h2>
+                <p className="text-gray-400">
+                  Real-time data from my open-source journey.
+                </p>
+              </div>
+              <a
+                href="https://github.com/saouchinabil"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+              >
+                Visit Profile <Icon name="externalLink" className="w-4 h-4" />
+              </a>
+            </div>
+          </Reveal>
+
+          <GitHubStats username="saouchinabil" />
+        </section>
+
         {/* ===== PROJECTS SECTION ===== */}
         <section id="projects" className="mb-32">
           <Reveal>
@@ -557,55 +903,61 @@ function App() {
               </a>
             </div>
           </Reveal>
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  {projects.map((project, index) => (
+    <Reveal key={project.title} delay={index * 150}>
+      <a
+        href={project.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block"
+      >
+        <SpotlightCard
+          className={`group h-full flex flex-col cursor-pointer ${project.border}`}
+        >
+          <div className="h-48 sm:h-64 w-full relative overflow-hidden">
+            <img
+              src={project.image}
+              alt={project.title}
+              className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-110"
+            />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {projects.map((project, index) => (
-              <Reveal key={project.title} delay={index * 150}>
-                <SpotlightCard
-                  className={`group h-full flex flex-col ${project.border}`}
-                >
-                  <div className="h-48 sm:h-64 w-full relative overflow-hidden">
-                    <img
-                      src={project.image}
-                      alt={project.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-110"
-                    />
+            <div
+              className={`absolute inset-0 bg-gradient-to-br ${project.gradient} mix-blend-overlay`}
+            />
 
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-br ${project.gradient} mix-blend-overlay`}
-                    />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F11] via-transparent to-transparent" />
 
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F11] via-transparent to-transparent" />
-
-                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-                      <div className="p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white">
-                        <Icon name="externalLink" className="w-5 h-5" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-6 sm:p-8 flex flex-col flex-grow">
-                    <h3 className="text-2xl font-bold mb-3 group-hover:text-indigo-300 transition-colors">
-                      {project.title}
-                    </h3>
-                    <p className="text-gray-400 mb-6 leading-relaxed flex-grow">
-                      {project.desc}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {project.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-gray-300"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </SpotlightCard>
-              </Reveal>
-            ))}
+            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+              <div className="p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white">
+                <Icon name="externalLink" className="w-5 h-5" />
+              </div>
+            </div>
           </div>
+
+          <div className="p-6 sm:p-8 flex flex-col flex-grow">
+            <h3 className="text-2xl font-bold mb-3 group-hover:text-indigo-300 transition-colors">
+              {project.title}
+            </h3>
+            <p className="text-gray-400 mb-6 leading-relaxed flex-grow">
+              {project.desc}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {project.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-gray-300"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </SpotlightCard>
+      </a>
+    </Reveal>
+  ))}
+</div>
         </section>
 
         {/* ===== CONTACT SECTION ===== */}
