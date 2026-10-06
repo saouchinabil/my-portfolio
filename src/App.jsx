@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
-
+import CursorGrid from "./CursorGrid";
 // ===== PREMIUM SVG ICONS =====
 const Icon = ({ name, className = "w-5 h-5" }) => {
   const icons = {
@@ -108,7 +108,7 @@ const Reveal = ({ children, className = "", delay = 0 }) => {
           observer.unobserve(entry.target);
         }
       },
-      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" },
+      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
@@ -127,6 +127,13 @@ const Reveal = ({ children, className = "", delay = 0 }) => {
   );
 };
 
+// ===== FORMAT NUMBER (1234 → 1.2K) =====
+const formatNumber = (num) => {
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+  if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+  return num.toString();
+};
+
 // ===== LIVE GITHUB STATS =====
 const GitHubStats = ({ username = "yourusername" }) => {
   const [stats, setStats] = useState(null);
@@ -143,13 +150,13 @@ const GitHubStats = ({ username = "yourusername" }) => {
         const user = await userRes.json();
 
         const reposRes = await fetch(
-          `https://api.github.com/users/${username}/repos?per_page=100`,
+          `https://api.github.com/users/${username}/repos?per_page=100`
         );
         const repos = await reposRes.json();
 
         const totalStars = repos.reduce(
           (acc, repo) => acc + (repo.stargazers_count || 0),
-          0,
+          0
         );
         const languages = repos.reduce((acc, repo) => {
           if (repo.language) {
@@ -171,10 +178,9 @@ const GitHubStats = ({ username = "yourusername" }) => {
           joined: new Date(user.created_at).getFullYear(),
         });
 
-        // Fetch contributions from free API
         try {
           const contribRes = await fetch(
-            `https://github-contributions-api.jogruber.de/v4/${username}?y=last`,
+            `https://github-contributions-api.jogruber.de/v4/${username}?y=last`
           );
           const contribData = await contribRes.json();
           setContributions(contribData.contributions || []);
@@ -215,7 +221,6 @@ const GitHubStats = ({ username = "yourusername" }) => {
     );
   }
 
-  // Build weeks from contributions
   const buildWeeks = () => {
     if (!contributions || contributions.length === 0) return [];
     const weeks = [];
@@ -233,7 +238,7 @@ const GitHubStats = ({ username = "yourusername" }) => {
   const weeks = buildWeeks();
   const totalContributions = contributions?.reduce(
     (sum, d) => sum + d.count,
-    0,
+    0
   );
 
   const getLevelColor = (count) => {
@@ -243,6 +248,7 @@ const GitHubStats = ({ username = "yourusername" }) => {
     if (count <= 10) return "bg-[#26a641] border border-[#26a641]";
     return "bg-[#39d353] border border-[#39d353]";
   };
+
   const statCards = [
     {
       label: "Repositories",
@@ -362,7 +368,7 @@ const GitHubStats = ({ username = "yourusername" }) => {
         </div>
       </SpotlightCard>
 
-      {/* Custom Contribution Graph - No Scrollbar */}
+      {/* Contribution Graph */}
       <SpotlightCard className="p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-2">
           <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -375,7 +381,6 @@ const GitHubStats = ({ username = "yourusername" }) => {
 
         {weeks.length > 0 ? (
           <>
-            {/* Graph - fits container, no scroll */}
             <div className="w-full">
               <div className="flex gap-[2px] sm:gap-[3px] md:gap-1">
                 {weeks.map((week, wi) => (
@@ -394,7 +399,7 @@ const GitHubStats = ({ username = "yourusername" }) => {
                         }
                         onMouseLeave={() => setHoveredDay(null)}
                         className={`w-full aspect-square rounded-[2px] sm:rounded-sm transition-all duration-200 hover:scale-150 hover:z-10 cursor-pointer ${getLevelColor(
-                          day.count,
+                          day.count
                         )}`}
                         title={`${day.count} contributions on ${day.date}`}
                       />
@@ -404,7 +409,6 @@ const GitHubStats = ({ username = "yourusername" }) => {
               </div>
             </div>
 
-            {/* Tooltip + Legend */}
             <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
               <div className="text-xs text-gray-500 min-h-[20px]">
                 {hoveredDay ? (
@@ -449,6 +453,41 @@ function App() {
   const [activeSection, setActiveSection] = useState("home");
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // ✅ ADDED — GitHub stats state
+  const [githubStats, setGithubStats] = useState({
+    stars: 0,
+    repos: 0,
+    loading: true,
+  });
+
+  // ✅ ADDED — Fetch GitHub stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(
+          "https://api.github.com/users/saouchinabil/repos?per_page=100"
+        );
+        const repos = await res.json();
+
+        const totalStars = repos.reduce(
+          (acc, repo) => acc + (repo.stargazers_count || 0),
+          0
+        );
+
+        setGithubStats({
+          stars: totalStars,
+          repos: repos.length,
+          loading: false,
+        });
+      } catch (err) {
+        console.error("GitHub fetch error:", err);
+        setGithubStats((prev) => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchStats();
+  }, []);
+
   useEffect(() => {
     let lastScrollY = window.scrollY;
 
@@ -465,7 +504,7 @@ function App() {
       setScrollY(currentScrollY);
       setShowScrollTop(currentScrollY > 400);
 
-      const sections = ["home", "about", "projects", "contact"];
+      const sections = ["home", "about", "github", "projects", "contact"];
       const scrollPosition = currentScrollY + 200;
       for (const section of sections) {
         const element = document.getElementById(section);
@@ -508,7 +547,7 @@ function App() {
       gradient: "from-cyan-500/20 via-blue-500/20 to-transparent",
       border: "group-hover:border-cyan-500/50",
       image: "/design.jpg",
-       link: "https://www.behance.net/nabilsaouchi", 
+      link: "https://www.behance.net/nabilsaouchi",
     },
     {
       title: "After Effects",
@@ -517,7 +556,7 @@ function App() {
       gradient: "from-orange-500/20 via-red-500/20 to-transparent",
       border: "group-hover:border-orange-500/50",
       image: "/motion.jpg",
-       link: "https://www.behance.net/nabilsaouchi", 
+      link: "https://www.behance.net/nabilsaouchi",
     },
   ];
 
@@ -621,88 +660,110 @@ function App() {
       <main className="relative z-10 pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* ===== HERO SECTION ===== */}
         <section
-          id="home"
-          className="min-h-[80vh] flex flex-col justify-center mb-20"
+  id="home"
+  className="relative min-h-screen flex flex-col justify-center mb-20 overflow-hidden"
+>
+  {/* 🎨 CURSOR GRID — Full section background */}
+  <div className="absolute inset-0 z-0">
+    <CursorGrid
+      cellSize={70}
+      color="#dab2e0"
+      radius={140}
+      falloff="smooth"
+      holdTime={400}
+      fadeDuration={800}
+      lineWidth={1.2}
+      maxOpacity={0.35}
+      fillOpacity={0}
+      gridOpacity={0}
+      cellRadius={0}
+      clickPulse
+      pulseSpeed={600}
+    />
+  </div>
+
+  {/* 📝 CONTENT — sits above the grid */}
+  <div className="relative z-10">
+    <Reveal>
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium w-fit mb-8">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+        </span>
+        Available for new projects
+      </div>
+    </Reveal>
+
+    <Reveal delay={100}>
+      <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.1] mb-8">
+        Building digital <br />
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 drop-shadow-[0_0_40px_rgba(168,85,247,0.3)]">
+          experiences
+        </span>{" "}
+        that matter.
+      </h1>
+    </Reveal>
+
+    <Reveal delay={200}>
+      <p className="text-lg sm:text-xl text-gray-400 max-w-2xl leading-relaxed mb-10">
+        I'm Nabil Saouchi, a Frontend Developer and Graphic Designer with
+        4+ years of experience, combining clean, modern code with creative
+        design to build responsive websites and engaging digital
+        experiences.
+      </p>
+    </Reveal>
+
+    <Reveal delay={300}>
+      <div className="flex flex-wrap gap-4">
+        <button
+          onClick={() => scrollToSection("projects")}
+          className="group relative px-8 py-4 rounded-full bg-white text-black font-semibold overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]"
         >
-          <Reveal>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium w-fit mb-8">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-              </span>
-              Available for new projects
-            </div>
-          </Reveal>
+          <span className="relative z-10 flex items-center gap-2">
+            View Projects
+            <Icon
+              name="arrowRight"
+              className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+            />
+          </span>
+        </button>
+        <button
+          onClick={() => scrollToSection("contact")}
+          className="px-8 py-4 rounded-full border border-white/10 text-white font-medium hover:bg-white/5 hover:border-white/20 transition-all"
+        >
+          Contact Me
+        </button>
+      </div>
+    </Reveal>
 
-          <Reveal delay={100}>
-            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight leading-[1.1] mb-8">
-              Building digital <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 drop-shadow-[0_0_40px_rgba(168,85,247,0.3)]">
-                experiences
-              </span>{" "}
-              that matter.
-            </h1>
-          </Reveal>
-
-          <Reveal delay={200}>
-            <p className="text-lg sm:text-xl text-gray-400 max-w-2xl leading-relaxed mb-10">
-              I'm Nabil Saouchi, a Frontend Developer and Graphic Designer with
-              4+ years of experience, combining clean, modern code with creative
-              design to build responsive websites and engaging digital
-              experiences.
-            </p>
-          </Reveal>
-
-          <Reveal delay={300}>
-            <div className="flex flex-wrap gap-4">
-              <button
-                onClick={() => scrollToSection("projects")}
-                className="group relative px-8 py-4 rounded-full bg-white text-black font-semibold overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]"
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  View Projects
-                  <Icon
-                    name="arrowRight"
-                    className="w-4 h-4 group-hover:translate-x-1 transition-transform"
-                  />
-                </span>
-              </button>
-              <button
-                onClick={() => scrollToSection("contact")}
-                className="px-8 py-4 rounded-full border border-white/10 text-white font-medium hover:bg-white/5 hover:border-white/20 transition-all"
-              >
-                Contact Me
-              </button>
-            </div>
-          </Reveal>
-
-          <Reveal delay={400}>
-            <div className="mt-20 pt-10 border-t border-white/5">
-              <p className="text-sm text-gray-500 uppercase tracking-widest mb-6">
-                Tools I Use
-              </p>
-              <div className="flex flex-wrap gap-8 items-center opacity-60 hover:opacity-100 transition-all duration-500">
-                {[
-                  "React",
-                  "TypeScript",
-                  "Next.js",
-                  "Tailwind",
-                  "Photoshop",
-                  "Illustrator",
-                  "After Effects",
-                ].map((tech) => (
-                  <span
-                    key={tech}
-                    className="relative text-xl font-bold text-gray-300 cursor-pointer transition-all duration-300 hover:text-white hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(99,102,241,0.8)] group"
-                  >
-                    {tech}
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400 group-hover:w-full transition-all duration-300 rounded-full" />
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Reveal>
-        </section>
+    <Reveal delay={400}>
+      <div className="mt-20 pt-10 border-t border-white/5">
+        <p className="text-sm text-gray-500 uppercase tracking-widest mb-6">
+          Tools I Use
+        </p>
+        <div className="flex flex-wrap gap-8 items-center opacity-60 hover:opacity-100 transition-all duration-500">
+          {[
+            "React",
+            "TypeScript",
+            "Next.js",
+            "Tailwind",
+            "Photoshop",
+            "Illustrator",
+            "After Effects",
+          ].map((tech) => (
+            <span
+              key={tech}
+              className="relative text-xl font-bold text-gray-300 cursor-pointer transition-all duration-300 hover:text-white hover:scale-110 hover:drop-shadow-[0_0_15px_rgba(99,102,241,0.8)] group"
+            >
+              {tech}
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-indigo-400 to-purple-400 group-hover:w-full transition-all duration-300 rounded-full" />
+            </span>
+          ))}
+        </div>
+      </div>
+    </Reveal>
+  </div>
+</section>
 
         {/* ===== ABOUT SECTION ===== */}
         <section id="about" className="py-32 mb-32">
@@ -739,17 +800,32 @@ function App() {
                 </p>
               </Reveal>
 
+              {/* ✅ CONNECTED TO REAL GITHUB */}
               <Reveal delay={300}>
                 <div className="grid grid-cols-2 gap-6 pt-6">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 transition-all hover:border-indigo-500/30">
                     <div className="text-3xl font-bold text-indigo-400 mb-1">
-                      5.2K+
+                      {githubStats.loading ? (
+                        <span className="inline-block w-16 h-8 bg-white/5 rounded animate-pulse" />
+                      ) : (
+                        <>
+                          {formatNumber(githubStats.stars)}
+                          <span className="text-indigo-400">+</span>
+                        </>
+                      )}
                     </div>
                     <div className="text-sm text-gray-400">GitHub Stars</div>
                   </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 transition-all hover:border-purple-500/30">
                     <div className="text-3xl font-bold text-purple-400 mb-1">
-                      86+
+                      {githubStats.loading ? (
+                        <span className="inline-block w-16 h-8 bg-white/5 rounded animate-pulse" />
+                      ) : (
+                        <>
+                          {githubStats.repos}
+                          <span className="text-purple-400">+</span>
+                        </>
+                      )}
                     </div>
                     <div className="text-sm text-gray-400">
                       Projects Completed
@@ -793,10 +869,18 @@ function App() {
 
             <div className="lg:col-span-2 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
+                {/* ✅ CONNECTED — GitHub Stars */}
                 <Reveal delay={200}>
                   <SpotlightCard className="p-6 flex flex-col justify-center items-center text-center min-h-[180px] bg-gradient-to-br from-indigo-500/10 to-transparent">
                     <div className="text-5xl font-bold text-white mb-2">
-                      5.2K<span className="text-indigo-400">+</span>
+                      {githubStats.loading ? (
+                        <span className="inline-block w-24 h-12 bg-white/5 rounded animate-pulse" />
+                      ) : (
+                        <>
+                          {formatNumber(githubStats.stars)}
+                          <span className="text-indigo-400">+</span>
+                        </>
+                      )}
                     </div>
                     <div className="text-sm text-gray-400 uppercase tracking-wider">
                       GitHub Stars
@@ -896,68 +980,70 @@ function App() {
                 </p>
               </div>
               <a
-                href="#"
+                href="https://github.com/saouchinabil"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-sm font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
               >
                 View GitHub <Icon name="externalLink" className="w-4 h-4" />
               </a>
             </div>
           </Reveal>
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  {projects.map((project, index) => (
-    <Reveal key={project.title} delay={index * 150}>
-      <a
-        href={project.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block"
-      >
-        <SpotlightCard
-          className={`group h-full flex flex-col cursor-pointer ${project.border}`}
-        >
-          <div className="h-48 sm:h-64 w-full relative overflow-hidden">
-            <img
-              src={project.image}
-              alt={project.title}
-              className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-110"
-            />
-
-            <div
-              className={`absolute inset-0 bg-gradient-to-br ${project.gradient} mix-blend-overlay`}
-            />
-
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F11] via-transparent to-transparent" />
-
-            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-              <div className="p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white">
-                <Icon name="externalLink" className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 sm:p-8 flex flex-col flex-grow">
-            <h3 className="text-2xl font-bold mb-3 group-hover:text-indigo-300 transition-colors">
-              {project.title}
-            </h3>
-            <p className="text-gray-400 mb-6 leading-relaxed flex-grow">
-              {project.desc}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {project.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-gray-300"
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {projects.map((project, index) => (
+              <Reveal key={project.title} delay={index * 150}>
+                <a
+                  href={project.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
                 >
-                  {tag}
-                </span>
-              ))}
-            </div>
+                  <SpotlightCard
+                    className={`group h-full flex flex-col cursor-pointer ${project.border}`}
+                  >
+                    <div className="h-48 sm:h-64 w-full relative overflow-hidden">
+                      <img
+                        src={project.image}
+                        alt={project.title}
+                        className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 group-hover:brightness-110"
+                      />
+
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-br ${project.gradient} mix-blend-overlay`}
+                      />
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0F0F11] via-transparent to-transparent" />
+
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                        <div className="p-2 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white">
+                          <Icon name="externalLink" className="w-5 h-5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 sm:p-8 flex flex-col flex-grow">
+                      <h3 className="text-2xl font-bold mb-3 group-hover:text-indigo-300 transition-colors">
+                        {project.title}
+                      </h3>
+                      <p className="text-gray-400 mb-6 leading-relaxed flex-grow">
+                        {project.desc}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {project.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-gray-300"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </SpotlightCard>
+                </a>
+              </Reveal>
+            ))}
           </div>
-        </SpotlightCard>
-      </a>
-    </Reveal>
-  ))}
-</div>
         </section>
 
         {/* ===== CONTACT SECTION ===== */}
