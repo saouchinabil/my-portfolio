@@ -608,7 +608,8 @@ function App() {
             onClick={() => scrollToSection("home")}
             className="px-4 py-2 font-bold text-lg tracking-tight hover:text-indigo-400 transition-colors"
           >
-            NS<span className="text-indigo-500">.</span>
+            <img src="new-lofo.png" alt="" className="relative z-10 w-10 h-8 object-contain" />
+           
           </button>
 
           <div className="hidden md:flex items-center gap-1">
